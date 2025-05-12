@@ -1,4 +1,5 @@
 import socketio
+from db import db
 
 # create a Socket.IO server
 sio_server = socketio.AsyncServer(
@@ -17,8 +18,11 @@ sio_app = socketio.ASGIApp(
 # EVENT: Client connected
 # -----------------------------
 @sio_server.event
-async def connect(sid, environ):
+async def connect(sid, environ, auth):
     print('Client connected:', sid)
+    print("auth",auth)
+    print("environ",environ)
+    # raise ConnectionRefusedError('authentication failed')
 
 # -----------------------------
 # EVENT: Client disconnected
