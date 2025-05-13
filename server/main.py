@@ -43,7 +43,13 @@ async def root(body:LoginPayload):
              token = jwt.encode(x, key, algorithm="HS256")
              return {"message":"User login successful",**x, "token": token}
     raise HTTPException(status_code=401, detail="Unauthorized")
-   
+
+@app.get('/users')
+async def getUsers():
+    data = []
+    for x in users:
+        data.append({"id": x["id"], "name":x["name"]})
+    return data
 
 # must setup the socketio app bottom of the app
 app.mount("/",app=sio_app)
