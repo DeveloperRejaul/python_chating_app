@@ -1,5 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BASE_URL } from "../constance/secret";
+import Intro from "../components/intro";
+import {io, Socket} from 'socket.io-client'
+import { useAuth } from "../provider/AuthProvider";
 
 
 type Message = {
@@ -7,16 +10,46 @@ type Message = {
   text: string;
 };
 
-
+;
 export default function App() {
   const [isLoading,setIsLoading] = useState(false);
   const [users, setUsers] = useState<{id:number, name:string}[]>([])
   const [chats, setChats] = useState<Record<number, Message[]>>({});
   const [selectedUser, setSelectedUser] = useState<{name:string, id:number} | null>(null);
-  const [input, setInput] = useState("");
-
+  const {userData} = useAuth()
+  const socket = useRef<Socket | null>(null)
 
   useEffect(()=>{
+    // connect socket
+    if(!socket.current) {
+      socket.current = io(BASE_URL, {
+        transports: ["websocket"],
+        auth:{token: userData.token}
+      })
+    }
+
+    const handleConnect = () => {
+      console.log("user connect");
+    }
+    const handleDisconnect = () => {
+      console.log("user disconnect");
+    }
+
+    const handleReceiveMessage = (data:{message:string, id:number, senderId:number}) => {
+      const newMessage: Message = { sender: "Them", text: data.message };
+      setChats((prev) => ({
+        ...prev,
+        [data.senderId]: [...(prev[data.senderId] || []), newMessage],
+      }));
+    }
+
+    // socket listeners
+    socket.current.on("connect", handleConnect)
+    socket.current.on("disconnect", handleDisconnect)
+    socket.current.on("send",handleReceiveMessage )
+
+
+   // get users
    const getUsers=async()=>{
     try {
       setIsLoading(true)
@@ -29,21 +62,35 @@ export default function App() {
     }
    }
    getUsers()
+
+   return () =>{
+    socket.current?.off("connect", handleConnect)
+    socket.current?.off("disconnect", handleDisconnect)
+    socket.current?.off("send", handleReceiveMessage)
+   }
   },[])
 
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    const formData = new FormData(e.currentTarget);
+    const data = formData.get('input')?.toString().trim();
+   
+    if(!data) return
 
-    // const newMessage: Message = { sender: "Me", text: input.trim() };
 
-    // setChats((prev) => ({
-    //   ...prev,
-    //   [selectedUserId]: [...(prev[selectedUserId] || []), newMessage],
-    // }));
+    const newMessage: Message = { sender: "Me", text: data.trim() };
 
-    setInput("");
+
+    if(selectedUser?.id) {
+      setChats((prev) => ({
+        ...prev,
+        [selectedUser?.id]: [...(prev[selectedUser?.id] || []), newMessage],
+      }));
+      e.currentTarget.reset()
+    }
+
+    socket.current?.emit("send", {message: data.trim(), id: selectedUser?.id, senderId:userData?.id || ""})
   };
 
   const messages = selectedUser?.id?  chats[selectedUser?.id] || [] : []
@@ -55,7 +102,7 @@ export default function App() {
       <div className="md:w-1/3 lg:w-1/4 bg-gray-100 border-r overflow-y-auto">
         <h2 className="text-xl font-semibold p-4 border-b">Users</h2>
         <ul>
-          {users.map((user) => (
+          {users.filter(u=> u.name !== userData.name).map((user) => (
             <li
               key={user?.id}
               onClick={() => setSelectedUser(user)}
@@ -67,8 +114,10 @@ export default function App() {
         </ul>
       </div>
 
+      
       {/* Chat Area */}
-      {/* <div className="flex-1 flex flex-col">
+
+     {selectedUser ?  <div className="flex-1 flex flex-col">
         <div className="flex justify-between items-center border-b p-4 bg-white shadow">
           <h2 className="text-xl font-semibold">{selectedUser?.name}</h2>
         </div>
@@ -92,12 +141,14 @@ export default function App() {
           className="flex p-4 border-t bg-white"
           onSubmit={handleSend}
         > 
+
           <input
             type="text"
             placeholder={`Message ${selectedUser?.name}`}
             className="flex-1 border rounded-l px-4 py-2 focus:outline-none"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
+            // value={input}
+            // onChange={(e) => setInput(e.target.value)}
+            name="input"
           />
           <button
             type="submit"
@@ -106,23 +157,7 @@ export default function App() {
             Send
           </button>
         </form>
-      </div> */}
+      </div> : <Intro/>}
     </div>
   );
 }
-
-
- {/* Input */}
-        {/* receive message display button */}
-        {/* <button
-          onClick={() => {
-            const newMessage = { sender: "Them", text: "This is a test reply!" };
-              setChats((prev) => ({
-                ...prev,
-                [selectedUserId]: [...(prev[selectedUserId] || []), newMessage],
-              }));
-            }}
-          className="m-4 self-start bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-        >
-          Simulate Incoming Message
-        </button> */}

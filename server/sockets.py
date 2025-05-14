@@ -1,10 +1,15 @@
 import socketio
 from db import db
+import jwt
+from secret import key
+from db import db
+
+users = db["user"]
 
 # create a Socket.IO server
 sio_server = socketio.AsyncServer(
     async_mode='asgi',
-    cors_allowed_origins=['*'],
+    cors_allowed_origins="*",
 )
 
 sio_app = socketio.ASGIApp(
@@ -19,10 +24,25 @@ sio_app = socketio.ASGIApp(
 # -----------------------------
 @sio_server.event
 async def connect(sid, environ, auth):
-    print('Client connected:', sid)
-    print("auth",auth)
-    print("environ",environ)
-    # raise ConnectionRefusedError('authentication failed')
+    if auth and "token" in auth:
+        try:
+            token = auth["token"]
+            payload = jwt.decode(token, key, algorithms=["HS256"]) 
+
+            # Optional user check
+            for x in users:
+                if x["email"] == payload["email"]:
+                    x["socketId"] = sid
+                    return True
+            return await sio_server.disconnect(sid)
+
+        except jwt.ExpiredSignatureError:
+            return await sio_server.disconnect(sid)
+
+        except jwt.DecodeError:
+            return await sio_server.disconnect(sid)
+    else:
+        return await sio_server.disconnect(sid)
 
 # -----------------------------
 # EVENT: Client disconnected
@@ -46,12 +66,14 @@ async def message(sid, data):
 # -----------------------------
 @sio_server.event
 async def send(sid, data):
-    target_sid = data.get('target_sid')
+    id = data.get('id')
     message = data.get('message')
-    if target_sid and message:
-        await sio_server.emit("message", message, to=target_sid)
-    else:
-        await sio_server.emit("error", "Missing target_sid or message", to=sid)
+    senderId = data.get('senderId')
+    for x in users:
+       if x and "socketId" in x:
+           if id == x['id']:
+            socketId = x["socketId"]
+            await sio_server.emit("send", {"message": message, "id":id, "senderId": senderId}, to=socketId)
 
 
 # -----------------------------

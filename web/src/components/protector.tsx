@@ -3,9 +3,8 @@ import { useAuth } from '../provider/AuthProvider';
 import { Navigate } from 'react-router';
 
 export default function Protector({children}:Readonly<{children:ReactNode}>) {
-    const {isLogin} = useAuth();
-    console.log(isLogin);
-    
+    const {userData:{isLogin}} = useAuth();
+
     if(!isLogin) {
         return <Navigate to={"/login"}/>
     } 

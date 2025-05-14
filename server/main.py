@@ -4,7 +4,6 @@ from db import db
 from modal import LoginPayload
 import jwt
 from secret import key
-
 from sockets import sio_app
 
 app = FastAPI()
@@ -20,6 +19,8 @@ origins = [
     "http://localhost:8081",
     "http://192.168.1.71",
     "http://192.168.1.71:8081",
+    "http://192.168.1.71:5173",
+    "http://192.168.68.113:5173",
     "*"
 ]
 

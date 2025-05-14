@@ -1,18 +1,31 @@
 import { createContext, useContext,  useState, type ReactNode } from "react";
 
+interface IUserData {
+    isLogin:boolean,
+    token:string,
+    name:string;
+    email:string;
+    id:string
+}
 interface IContext {
-    setIsLogin: React.Dispatch<React.SetStateAction<boolean>>
-    isLogin:boolean
+    setUserData: React.Dispatch<React.SetStateAction<IUserData>>
+    userData:IUserData
 }
 
 
-const Context = createContext<IContext>({} as IContext)
+export const AuthContext = createContext<IContext>({} as IContext)
 
-export const useAuth = () => useContext(Context);
+export const useAuth = () => useContext(AuthContext);
 
 export default function AuthProvider ({children}:Readonly<{children:ReactNode}>) {
-    const [isLogin, setIsLogin] = useState(false)
+    const [userData, setUserData] = useState<IUserData>({
+        isLogin:false,
+        token:"",
+        name:"",
+        email:"",
+        id:""
+    } as IUserData);
 
-    return <Context.Provider value={{isLogin, setIsLogin}}>{children}</Context.Provider>
+    return <AuthContext.Provider value={{userData, setUserData}}>{children}</AuthContext.Provider>
 }
 

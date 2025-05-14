@@ -6,7 +6,7 @@ import { useNavigate } from "react-router";
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false)
-  const {setIsLogin} = useAuth()
+  const {setUserData} = useAuth()
   const navigate = useNavigate()
   const handleSubmit = async (e:React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -25,7 +25,8 @@ export default function Login() {
       })
       
       if(res.ok){
-        setIsLogin(true)
+        const result = await res.json()
+        setUserData({isLogin: true, token: result?.token || "", email: result?.email||"", name: result?.name || "", id: result?.id || ""})
         navigate("/");
       }
       setIsLoading(false)
@@ -50,7 +51,7 @@ export default function Login() {
           placeholder="Enter your email"
           required
           name="email"
-           autoComplete="current-email"
+          autoComplete="current-email"
         />
       </div>
       <div>
