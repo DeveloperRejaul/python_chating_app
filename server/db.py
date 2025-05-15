@@ -18,5 +18,11 @@ db = {
             "email":"erfan@orangetoolz.com",
             "password":"123456"
         },
+        {
+            "id":4,
+            "name":"jamilashraf",
+            "email":"jamilashraf78@gmail.com",
+            "password":"123456"
+        },
     ]
 }

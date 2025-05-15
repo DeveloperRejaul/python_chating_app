@@ -69,11 +69,13 @@ async def send(sid, data):
     id = data.get('id')
     message = data.get('message')
     senderId = data.get('senderId')
+    files = data.get('files')
+    
     for x in users:
        if x and "socketId" in x:
            if id == x['id']:
             socketId = x["socketId"]
-            await sio_server.emit("send", {"message": message, "id":id, "senderId": senderId}, to=socketId)
+            await sio_server.emit("send", {"message": message, "id":id, "senderId": senderId, "files":files}, to=socketId)
 
 
 # -----------------------------

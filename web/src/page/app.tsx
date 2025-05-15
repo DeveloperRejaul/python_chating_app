@@ -3,21 +3,29 @@ import { BASE_URL } from "../constance/secret";
 import Intro from "../components/intro";
 import {io, Socket} from 'socket.io-client'
 import { useAuth } from "../provider/AuthProvider";
+import FileIcon from "../assets/file-icon";
 
 
 type Message = {
   sender: "Me" | "Them";
   text: string;
+  files?: File[]
 };
-
-;
+interface IReceiveDataType  {
+  message:string,
+  id:number, 
+  senderId:number,
+  files?:File[]
+}
 export default function App() {
   const [isLoading,setIsLoading] = useState(false);
   const [users, setUsers] = useState<{id:number, name:string}[]>([])
   const [chats, setChats] = useState<Record<number, Message[]>>({});
   const [selectedUser, setSelectedUser] = useState<{name:string, id:number} | null>(null);
-  const {userData} = useAuth()
-  const socket = useRef<Socket | null>(null)
+  const {userData} = useAuth();
+  const [files, setFiles] = useState<File[]>([] as File[]);
+  const socket = useRef<Socket | null>(null);
+  const attestmentRef = useRef<HTMLInputElement|null>(null)
 
   useEffect(()=>{
     // connect socket
@@ -35,8 +43,9 @@ export default function App() {
       console.log("user disconnect");
     }
 
-    const handleReceiveMessage = (data:{message:string, id:number, senderId:number}) => {
-      const newMessage: Message = { sender: "Them", text: data.message };
+    // receive data
+    const handleReceiveMessage = (data:IReceiveDataType) => {
+      const newMessage: Message = { sender: "Them", text: data.message , files: data.files};
       setChats((prev) => ({
         ...prev,
         [data.senderId]: [...(prev[data.senderId] || []), newMessage],
@@ -71,16 +80,16 @@ export default function App() {
   },[])
 
 
-  const handleSend = (e: React.FormEvent<HTMLFormElement>) => {
+  // send data
+  const handleSend = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const data = formData.get('input')?.toString().trim();
    
     if(!data) return
+    const newMessage: Message = { sender: "Me", text: data.trim() , files};
 
-
-    const newMessage: Message = { sender: "Me", text: data.trim() };
-
+    socket.current?.emit("send", {message: data.trim(), id: selectedUser?.id, senderId:userData?.id || "", files})
 
     if(selectedUser?.id) {
       setChats((prev) => ({
@@ -88,9 +97,9 @@ export default function App() {
         [selectedUser?.id]: [...(prev[selectedUser?.id] || []), newMessage],
       }));
       e.currentTarget.reset()
+      setFiles([])
     }
 
-    socket.current?.emit("send", {message: data.trim(), id: selectedUser?.id, senderId:userData?.id || ""})
   };
 
   const messages = selectedUser?.id?  chats[selectedUser?.id] || [] : []
@@ -133,29 +142,50 @@ export default function App() {
               }`}
             >
               {msg.text}
+              <p>{msg.files && msg.files.map(f=> f.name)}</p>
             </div>
           ))}
         </div>
 
+        {/* input part  */}
         <form
           className="flex p-4 border-t bg-white"
           onSubmit={handleSend}
         > 
-
-          <input
-            type="text"
-            placeholder={`Message ${selectedUser?.name}`}
-            className="flex-1 border rounded-l px-4 py-2 focus:outline-none"
-            // value={input}
-            // onChange={(e) => setInput(e.target.value)}
-            name="input"
+          <input 
+           type="file" 
+           name="image" 
+           id="image" 
+           className="opacity-0 hidden"
+           ref={attestmentRef}
+           onChange={(e:React.ChangeEvent<HTMLInputElement>) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              setFiles(pre=>[...pre, file])
+            }
+          }}
           />
-          <button
-            type="submit"
-            className="bg-blue-500 text-white px-4 rounded-r hover:bg-blue-600"
-          >
-            Send
-          </button>
+          {/* Abetments */}
+          <div className="flex justify-center items-center px-2">
+            <FileIcon size={30} color="#0251c7" className="cursor-pointer" onClick={() => attestmentRef.current?.click()}/>
+          </div>
+          <div className="border flex flex-1 rounded-lg overflow-hidden">
+            <div className="p-2">
+              {files.map((f)=><div>{f.name}</div>)}
+            </div>
+            <input
+              type="text"
+              placeholder={`Message ${selectedUser?.name}`}
+              className="flex flex-1 px-4 py-2 focus:outline-none"
+              name="input"
+            />
+            <button
+              type="submit"
+              className="bg-blue-500 text-white px-4 rounded-r hover:bg-blue-600"
+            >
+              Send
+            </button>
+          </div>
         </form>
       </div> : <Intro/>}
     </div>
