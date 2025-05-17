@@ -4,6 +4,7 @@ import Intro from "../components/intro";
 import {io, Socket} from 'socket.io-client'
 import { useAuth } from "../provider/AuthProvider";
 import FileIcon from "../assets/file-icon";
+import { downloadFile } from "../utils/files";
 
 
 type Message = {
@@ -26,6 +27,8 @@ export default function App() {
   const [files, setFiles] = useState<File[]>([] as File[]);
   const socket = useRef<Socket | null>(null);
   const attestmentRef = useRef<HTMLInputElement|null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
 
   useEffect(()=>{
     // connect socket
@@ -82,22 +85,50 @@ export default function App() {
 
   // send data
   const handleSend = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const data = formData.get('input')?.toString().trim();
-   
-    if(!data) return
-    const newMessage: Message = { sender: "Me", text: data.trim() , files};
+    try {
+      e.preventDefault();
+      const formData = new FormData(e.currentTarget);
+      const data = formData.get('input')?.toString().trim();
+  
+      const processedFiles = await Promise.all(
+        files.map((file) => {
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              resolve({
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                data: reader.result, // base64 or ArrayBuffer
+              });
+            };
+            reader.readAsDataURL(file); // You could use .readAsArrayBuffer if needed
+          });
+        })
+      );
+    
 
-    socket.current?.emit("send", {message: data.trim(), id: selectedUser?.id, senderId:userData?.id || "", files})
-
-    if(selectedUser?.id) {
-      setChats((prev) => ({
-        ...prev,
-        [selectedUser?.id]: [...(prev[selectedUser?.id] || []), newMessage],
-      }));
-      e.currentTarget.reset()
-      setFiles([])
+      if(!data) return
+      const newMessage: Message = { sender: "Me", text: data.trim() , files:processedFiles as File[]};
+  
+  
+      console.log(newMessage);
+  
+      socket.current?.emit("send", {message: data.trim(), id: selectedUser?.id, senderId:userData?.id || "", files:processedFiles})
+  
+      if(selectedUser?.id) {
+        setChats((prev) => ({
+          ...prev,
+          [selectedUser?.id]: [...(prev[selectedUser?.id] || []), newMessage],
+        }));
+        if(fileInputRef.current){
+          fileInputRef.current.value = ""
+        }
+        setFiles([])
+      }
+    } catch (error) {
+      console.log(error);
+      
     }
 
   };
@@ -142,7 +173,11 @@ export default function App() {
               }`}
             >
               {msg.text}
-              <p>{msg.files && msg.files.map(f=> f.name)}</p>
+              {msg.files && msg.files.map(f=> <p onClick={()=>{
+                if(msg.sender === "Them"){
+                  downloadFile({name:f.name, type:f.type, data:f.data})
+                }
+              }}>{f.name}</p>)}
             </div>
           ))}
         </div>
@@ -178,6 +213,7 @@ export default function App() {
               placeholder={`Message ${selectedUser?.name}`}
               className="flex flex-1 px-4 py-2 focus:outline-none"
               name="input"
+              ref={fileInputRef}
             />
             <button
               type="submit"
