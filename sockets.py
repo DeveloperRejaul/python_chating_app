@@ -33,6 +33,7 @@ async def connect(sid, environ, auth):
             for x in users:
                 if x["email"] == payload["email"]:
                     x["socketId"] = sid
+                    print('Client connected:', sid)
                     return True
             return await sio_server.disconnect(sid)
 

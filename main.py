@@ -8,7 +8,6 @@ from sockets import sio_app
 
 app = FastAPI()
 
-
 # user db
 users = db["user"]
 
@@ -49,7 +48,7 @@ async def root(body:LoginPayload):
 async def getUsers():
     data = []
     for x in users:
-        data.append({"id": x["id"], "name":x["name"]})
+        data.append({"id": x["id"], "name":x["name"], "email": x['email']})
     return data
 
 # must setup the socketio app bottom of the app
